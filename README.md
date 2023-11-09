@@ -8,17 +8,18 @@ print(checkopt.checkopt("g help m|module="))
 ```
 
 ```
-r = checkopt.checkopt("m|module=* f=")
+checkopt.checkopt("m|module=* f=")
 (venv) PS D:\python> python .\demo.py -m module_name1 -m module_name2 extra_data -f 123
 ({'module': ['module_name1', 'module_name2'], 'f': '123'}, ['extra_data'])
 ```
 # argument format
-`short_opts|long_opts=*`
-`=`means the option receives an  argument
-`*` means the option allows multiple arguments and the corresponding data will be a string list
-while space is the char to split to option pattern
+`short_option|long_option=*`  
+example: `m|mocule=*`  
+`=` (optional) means the option receives an  argument  
+`*` (optional) means the option allows multiple arguments and the corresponding data will be a string list  
+while space is the char to split to option pattern  
 
-# advantages
+# Superiority compared to getopt
 code:
 ```
 print(getopt.getopt(sys.argv[1:], "m:h")) 
@@ -29,5 +30,5 @@ print(checkopt.checkopt("m= h|help"))
 result:
 ```
 ([('-h', '')], ['file', '-m', 'abc']) # getopt
-({'h': None, 'm': 'abc'}, ['file'])   # checkopt
+({'h': None, 'm': 'abc'}, ['file'])   # checkopt ╰(*°▽°*)╯
 ```
