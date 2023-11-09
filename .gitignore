@@ -2,3 +2,4 @@
 /checkopt.egg-info
 /dist
 /.idea
+__pycache__

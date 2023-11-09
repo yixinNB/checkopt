@@ -1,40 +1,62 @@
 import re
 import sys
+'''
+opts_patterns
+{
+        "option_name":{
+            "alias": "corresponding short or long option name",
+            "need_arg":bool,
+            "mutiple_arg":bool,# If this option is true, the corresponding data type is a list.
+        }
+}
+
+exanple of opts_pattern
+m|module=*
+means
+-m or --module, need one or more arguments
+
+If the option has an alias, the corresponding data be added to the long option
+'''
 
 
-def __decode(opts_pattern: str):
-    opts_pattern = opts_pattern.split(" ")
-    short_opts, long_opts = {}, {}
-    for item in opts_pattern:
+def __decode(opts_str_pattern: str):
+    opts_str_patterns = opts_str_pattern.split(" ")
+    opts_patterns={}
+    for item in opts_str_patterns:
         item, tmp = item[:-1], item[-1:]
-        if tmp == "=":
+        if tmp == "*":
+            need_arg=True
+            mutiple_arg = True
+            assert item[-1:]=="=","opts_pattern must have = if it has *"
+            item=item[:-1]
+        elif tmp == "=":
             need_arg = True
+            mutiple_arg = False
         else:
             need_arg = False
+            mutiple_arg = False
             item = item + tmp
-        # 短或长只允许一个
+
         try:
             a, b = item.split("|")
-            short_opts[a] = {
+            assert len(b)>1,"long pattern must after |"
+            opts_patterns[a] = {
                 "alias": b,
-                "need_arg": need_arg
+                "need_arg": need_arg,
+                "mutiple_arg":mutiple_arg
             }
-            long_opts[b] = {
+            opts_patterns[b] = {
                 "alias": a,
-                "need_arg": need_arg
+                "need_arg": need_arg,
+                "mutiple_arg":mutiple_arg
             }
         except:
-            if len(item) == 1:
-                short_opts[item] = {
-                    "alias": None,
-                    "need_arg": need_arg
-                }
-            else:
-                long_opts[item] = {
-                    "alias": None,
-                    "need_arg": need_arg
-                }
-    return short_opts, long_opts
+            opts_patterns[item] = {
+                "alias": None,
+                "need_arg": need_arg,
+                "mutiple_arg":mutiple_arg
+            }
+    return opts_patterns
 
 
 def __is_flag(s: str):
@@ -44,51 +66,45 @@ def __is_flag(s: str):
         return 1
     return 0
 
-
-def checkopt(opts, err="please check your input"):
-    short_opts, long_opts = __decode(opts)
+def checkopt(opts_str_pattern, err="please check your input"):
+    opts_pattern = __decode(opts_str_pattern)
     origin_args = iter(sys.argv[1:])
-    # origin_args=iter(["-h","123", "-o", "123"]) #todo change it
     opts, args = {}, []
 
     if len(sys.argv[1:]) == 0:
         return opts, args
 
-    # allow args at the beginning of the line if there is only one
-    first = origin_args.__next__()
-    if __is_flag(first) == 0:
-        args.append(first)
-    else:
-        origin_args = iter(sys.argv[1:])
-        # origin_args = iter(["-h","123", "-o", "123"]) #todo change it
+    # TODO allow args at the beginning of the line only if there is only one
 
     while True:
         try:
-            flag_or_arg = origin_args.__next__()
+            opt_or_arg = origin_args.__next__()
         except StopIteration:
             break
-        if __is_flag(flag_or_arg) == 2:
-            flag2 = flag_or_arg.strip("-")
-            assert flag2 in long_opts, f"--{flag2} is not expected"
-            assert long_opts[flag2]["alias"] not in opts
-            if long_opts[flag2]["need_arg"]:
-                arg = origin_args.__next__()
-                assert __is_flag(arg) == 0
-                opts[flag2] = arg
-            else:
-                opts[flag2] = None
 
-        elif __is_flag(flag_or_arg) == 1:
-            flag1 = flag_or_arg.strip("-")
-            assert flag1 in short_opts, f"-{flag1} is not expected"
-            assert short_opts[flag1]["alias"] not in opts
-            if short_opts[flag1]["need_arg"]:
-                arg = origin_args.__next__()
-                assert __is_flag(arg) == 0
-                opts[flag1] = arg
-            else:
-                opts[flag1] = None
-        else:
-            arg = flag_or_arg
+        if __is_flag(opt_or_arg) == 0:
+            arg = opt_or_arg
             args.append(arg)
+        else:
+            opt = opt_or_arg.strip("-")
+            alias = opts_pattern[opt]["alias"]
+            if len(opt) == 1 and alias is not None:
+                opt = alias
+            assert opt in opts_pattern, f"option {opt} is not expected"
+            mutiple_arg = opts_pattern[opt]["mutiple_arg"]
+            assert mutiple_arg or opt not in opts, f"{opt} isn't allowed (multiple) arguments"
+            need_arg = opts_pattern[opt]["need_arg"]
+            if need_arg:
+                arg = origin_args.__next__()
+                assert __is_flag(arg) == 0, f"{arg} must be an argument"
+            else:
+                arg=None
+
+            if mutiple_arg and opt not in opts:
+                opts[opt]=[arg]
+            elif mutiple_arg and opt in opts:
+                opts[opt].append(arg)
+            else:# only argument
+                opts[opt]=arg
+
     return opts, args
